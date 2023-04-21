@@ -8,4 +8,4 @@ Using an array of "A" to "Z", it is designed to handle any number of queried fie
 
 It can also be easily modified to accept a stored Access query instead, using DoCmd.TransferSpreadsheet.
 
-    *Note: current copy is the first version; further changes/testing exposed some errors*
+   *Note: current copy is the first version; further changes/testing exposed some errors*
