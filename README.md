@@ -7,3 +7,5 @@ VBA function that takes a file name string, directory string, and SELECT stateme
 Using an array of "A" to "Z", it is designed to handle any number of queried fields. And while typically unnecessary, it can also be modified to include "AA", "AB", "AC", etc. as needed.
 
 It can also be easily modified to accept a stored Access query instead, using DoCmd.TransferSpreadsheet.
+
+    *Note: current copy is the first version; further changes/testing exposed some errors*
