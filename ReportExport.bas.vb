@@ -1,6 +1,5 @@
 Public Function ReportExport(strSQL As String, strDir As String, strExportFile As String, strReportTitle As String)
 
-    'Next commit notes: additional Dims, Resume comment
 
 
     On Error GoTo Err_Stop
