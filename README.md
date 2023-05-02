@@ -1,7 +1,7 @@
 # VBA-code-samples
 
 ### a hub for VBA functions and various code created by me;
-### feel free to use, and by all means make it better!  
+### please feel free to use, and by all means make it better!  
 
 ___________________________________________________________
 
