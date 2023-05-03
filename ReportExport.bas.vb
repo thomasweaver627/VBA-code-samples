@@ -21,25 +21,14 @@ Public Function ReportExport(strSQL As String, strDir As String, strExportFile A
     Dim i As Long
     Dim j As Long
     Dim col As Long
+    Dim intShift As Integer
     Dim intRSCount As Long
+    Dim oFS As FileSystemObject
 
-    'Dim oFS As Object
     'Dim dteDateLastModified As Date
     'Dim strExistingFile As String
-
-
-
-
-    ' confirm import directory exists
-    If Dir(strDir) = "" Then
-        MsgBox "Unable to locate directory! Please confirm directory is available: " & strDir
-        GoTo Err_Exit
-    End If
-
+ 
     ' additional code if you need this func to also read an existing file or previous export file
-    ' create an instance of the MS Scripting Runtime FileSystemObject class
-    'Set oFS = CreateObject("Scripting.FileSystemObject")
-
     ' get 'Date modified' info from existing file
     'dteDateLastModified = oFS.GetFile(strExistingFile).Datelastmodified
 
@@ -49,18 +38,27 @@ Public Function ReportExport(strSQL As String, strDir As String, strExportFile A
     ' End If
 
     DoCmd.SetWarnings False
-    
     Set db = CurrentDb
+    Set oFS = New FileSystemObject
+    Set objExcel = CreateObject("Excel.Application")
 
     Set rsExport = db.OpenRecordset(strSQL, dbOpenDynaset)
 
-    strExportFileFull = strDir & strExportFile & "_" & Format(Now, "YYYYMMDD_hhmmss") & ".xlsx"
+    'check that file args were passed
+    If strDir = "" Or strExportFile = "" Then
+        MsgBox "The output folder and/or file are not defined", vbOKOnly, "Report Export"
+        Exit Function
+    End If
 
+    'check that directory exists
+    If Not oFS.FolderExists(strDir) Then
+        MsgBox "The report folder does not exist and could not be created: " & vbCrLf & strDir, vbOKOnly, "Report Export"
+        Exit Function
+    End If
 
+    strExportFileFull = strDir & "\" & strExportFile & "_" & Format(Now, "YYYYMMDD_hhmmss") & ".xlsx"
 
-    'FORMAT EXCEL TEMPLATE
-    Set objExcel = CreateObject("Excel.Application")
-    
+    'Create and open Excel file
     With objExcel
         .DisplayAlerts = False ' True for testing
         .Workbooks.Add.SaveAs FileName:=strExportFileFull, ReadOnlyRecommended:=False
@@ -74,29 +72,35 @@ Public Function ReportExport(strSQL As String, strDir As String, strExportFile A
 
     ' allows func to work with any column count, can be made longer if needed
     ' split creates 0-based index array
-    aryCols = Split("A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T,U,V,W,X,Y,Z", ",")
+    aryCols = Split("A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T,U,V,W,X,Y,Z,AA,AB,AC,AD,AE,AF,AG,AH,AI,AJ,AK,AL,AM,AN,AO,AP,AQ,AR,AS,AT,AU,AV,AW,AX,AY,AZ", ",")
 
     ' gets record count
     rsExport.MoveLast
     intRSCount = rsExport.RecordCount
     rsExport.MoveFirst
 
-    ' stores rsExport as a 0-based 2D array (columns, rows)
-    ' just the records, not field names
+    ' stores rsExport data as a 0-based 2D array (columns, rows)
     aryRS = rsExport.GetRows(intRSCount - 1)
     ' gets field/column count of array
     intFieldCount = UBound(aryRS, 1)
 
+    'shifts down starting row if strReportTitle is passed
+    If strReportTitle = "" Then
+        intShift = 1
+    Else
+        intShift = 2
+    End If
+
     'populate column/field names
     intCol = 0
     For j = LBound(aryRS, 1) To UBound(aryRS, 1)
-        xlSheet.Range(aryCols(j) & "1").Value = rsExport.Fields(intCol).Name
+        xlSheet.Range(aryCols(j) & intShift).Value = rsExport.Fields(intCol).Name
         intCol = intCol + 1
     Next j
 
     'populate the rest of the sheet
     For j = LBound(aryRS, 1) To UBound(aryRS, 1)
-        intRow = 2
+        intRow = intShift + 1
         For i = LBound(aryRS, 2) To UBound(aryRS, 2)
             xlSheet.Range(aryCols(j) & intRow).Value = aryRS(j, i)
             intRow = intRow + 1
@@ -110,30 +114,23 @@ Public Function ReportExport(strSQL As String, strDir As String, strExportFile A
         'Get Last Row
         intLastRow = .Range("A" & .Rows.Count).End(xlUp).Row
 
-
-        'to insert totals at  bottom of spreadsheet
-        ' .Range("B" & intLastRow + 2).Formula = "Total # of ______:"
-        ' .Range("C" & intLastRow + 2).Formula = "=COUNTA(B2:B" & intLastRow & ")"
-
-
         'Format Report Columns
         For col = 0 To intFieldCount
-            .Range(aryCols(col) & "2", aryCols(col) & intLastRow).HorizontalAlignment = xlCenter
-            If IsDate(.Range(aryCols(col) & "2").Value) Then
-                .Range(aryCols(col) & "2", aryCols(col) & intLastRow).HorizontalAlignment = xlRight
-                .Range(aryCols(col) & "2", aryCols(col) & intLastRow).NumberFormat = "mm/dd/yyyy"
-            ElseIf IsNumeric(.Range(aryCols(col) & "2").Value) Then
-                .Range(aryCols(col) & "2", aryCols(col) & intLastRow).HorizontalAlignment = xlRight
-                ' adapt as needed
-                If .Range(aryCols(col) & "2").Value > 9 Then
-                    .Range(aryCols(col) & "2", aryCols(col) & intLastRow).NumberFormat = "00000000-00"
+            intRow = intShift + 1
+            .Range(aryCols(col) & intRow, aryCols(col) & intLastRow).HorizontalAlignment = xlCenter
+            If IsDate(.Range(aryCols(col) & intRow).Value) Then
+                .Range(aryCols(col) & intRow, aryCols(col) & intLastRow).HorizontalAlignment = xlRight
+                .Range(aryCols(col) & intRow, aryCols(col) & intLastRow).NumberFormat = "mm/dd/yyyy"
+            ElseIf IsNumeric(.Range(aryCols(col) & intRow).Value) Then
+                .Range(aryCols(col) & intRow, aryCols(col) & intLastRow).HorizontalAlignment = xlRight
+                If .Range(aryCols(col) & intRow).Value > 9 Then
+                    .Range(aryCols(col) & intRow, aryCols(col) & intLastRow).NumberFormat = "00000000-00" ' change as needed
                 End If
-            ElseIf Left(.Range(aryCols(col) & "2").Value, 1) = "$" Then
-                .Range(aryCols(col) & "2", aryCols(col) & intLastRow).HorizontalAlignment = xlRight
-                .Range(aryCols(col) & "2", aryCols(col) & intLastRow).NumberFormat = "$#,##0.00"
+            ElseIf Left(.Range(aryCols(col) & intRow).Value, 1) = "$" Then
+                .Range(aryCols(col) & intRow, aryCols(col) & intLastRow).HorizontalAlignment = xlRight
+                .Range(aryCols(col) & intRow, aryCols(col) & intLastRow).NumberFormat = "$#,##0.00"
             End If
         Next col
-
 
         ' use .TextToColumns to clean up messy string data
         ' If IsEmpty("D2") = False Then
@@ -141,13 +138,16 @@ Public Function ReportExport(strSQL As String, strDir As String, strExportFile A
         ' End If
 
         'Format Report Borders
-        .Range(aryCols(0) & "1", aryCols(intFieldCount) & intLastRow).Borders(xlEdgeLeft).Weight = xlThin
-        .Range(aryCols(0) & "1", aryCols(intFieldCount) & intLastRow).Borders(xlEdgeRight).Weight = xlThin
-        .Range(aryCols(0) & "1", aryCols(intFieldCount) & intLastRow).Borders(xlEdgeBottom).Weight = xlThin
-        .Range(aryCols(0) & "1", aryCols(intFieldCount) & intLastRow).Borders(xlEdgeTop).Weight = xlThin
-        .Range(aryCols(0) & "1", aryCols(intFieldCount) & intLastRow).Borders(xlInsideVertical).Weight = xlThin
-        .Range(aryCols(0) & "1", aryCols(intFieldCount) & intLastRow).Borders(xlInsideHorizontal).Weight = xlThin
+        .Range(aryCols(0) & intShift, aryCols(intFieldCount) & intLastRow).Borders(xlEdgeLeft).Weight = xlThin
+        .Range(aryCols(0) & intShift, aryCols(intFieldCount) & intLastRow).Borders(xlEdgeRight).Weight = xlThin
+        .Range(aryCols(0) & intShift, aryCols(intFieldCount) & intLastRow).Borders(xlEdgeBottom).Weight = xlThin
+        .Range(aryCols(0) & intShift, aryCols(intFieldCount) & intLastRow).Borders(xlEdgeTop).Weight = xlThin
+        .Range(aryCols(0) & intShift, aryCols(intFieldCount) & intLastRow).Borders(xlInsideVertical).Weight = xlThin
+        .Range(aryCols(0) & intShift, aryCols(intFieldCount) & intLastRow).Borders(xlInsideHorizontal).Weight = xlThin
 
+        'to insert totals at  bottom of spreadsheet
+        ' .Range("B" & intLastRow + 2).Formula = "Total # of ______:"
+        ' .Range("C" & intLastRow + 2).Formula = "=COUNTA(B2:B" & intLastRow & ")"
 
         ' Format Totals Fields
         ' With .Range("B" & intLastRow + 2, "C" & intLastRow + 2)
@@ -156,56 +156,35 @@ Public Function ReportExport(strSQL As String, strDir As String, strExportFile A
         '     .Borders(xlEdgeBottom).Weight = xlMedium
         ' End With
 
-
-        'Format Column Headings
-        .Rows("1:1").RowHeight = 31.5
-
-        With .Range(aryCols(0) & "1", aryCols(intFieldCount) & "1").Interior
-            .Pattern = xlSolid
-            .PatternColorIndex = xlAutomatic
-            .ThemeColor = xlThemeColorAccent1
-            .TintAndShade = 0.6
-            .PatternTintAndShade = 0
-        End With
-        With .Range(aryCols(0) & "1", aryCols(intFieldCount) & "1")
-            .HorizontalAlignment = xlCenter
-            .VerticalAlignment = xlCenter
-            .Font.Bold = True
-        End With
-
         'Hide Columns
         '.Range("M:N").EntireColumn.Hidden = True
 
         'Freeze Top Row
-        .Range("A1").Select
-        objExcel.ActiveWindow.SplitRow = 1
+        .Range(aryCols(0) & intShift).Select
+        objExcel.ActiveWindow.SplitRow = intShift
         objExcel.ActiveWindow.FreezePanes = True
 
-
-
-        'Set Auto Filter
+        'Set Auto Filter and Auto Fit
         .AutoFilterMode = False
-        .Range(aryCols(0) & ":" & aryCols(intFieldCount)).AutoFilter
+        .Range(aryCols(0) & intShift & ":" & aryCols(intFieldCount) & intLastRow).AutoFilter
+        .Columns(aryCols(0) & ":" & aryCols(intFieldCount)).Select
+        .Range(aryCols(0) & ":" & aryCols(intFieldCount)).Columns.AutoFit
 
-        'Auto Fit Columns and Rows
-        .Range(aryCols(0) & ":" & aryCols(intFieldCount)).ColumnWidth = 80
-        .Columns(aryCols(0) & ":" & aryCols(intFieldCount)).EntireColumn.AutoFit
-        .Rows("2:" & intLastRow).EntireRow.AutoFit
-
-
-        'Configure Page Setup
-        objExcel.PrintCommunication = False
-
-        With .PageSetup
-            .PrintTitleRows = "$1:$1"
-            'fprmat report title as needed
-            .CenterHeader = "&""-,Bold""&12" & strReportTitle
-            .CenterHorizontally = True
-            .Orientation = xlLandscape
-        End With
-
-        On Error Resume Next
-        objExcel.PrintCommunication = True
+        'Format Header/Fields
+        .Range("A1:" & aryCols(intFieldCount) & intShift).Interior.Color = RGB(47, 96, 128)
+        .Range("A1:" & aryCols(intFieldCount) & intShift).Font.Color = RGB(242, 242, 242)
+        If strReportTitle <> "" Then 
+            .Range("A1").Value = strReportTitle
+            .Range("A1").Font.Size = 20
+            .Rows("1:2").Font.Bold = True
+            'moves cursor to first row
+            .Range("A3").Select
+        Else
+            .Rows(1).Font.Bold = True
+            .Range("A2").Select
+        End If
+        
+        
 
         'Save Changes
         xlWB.Save
@@ -216,16 +195,15 @@ Public Function ReportExport(strSQL As String, strDir As String, strExportFile A
     objExcel.Quit
     Set objExcel = Nothing
     
-    
-
     FollowHyperlink strExportFileFull
 
 Err_Exit:
     DoCmd.SetWarnings True
-    objExcel.Quit
-    Set objExcel = Nothing
-    rsExport.Close
-    Set rsExport = Nothing
+    'for testing
+    ' objExcel.Quit
+    ' Set objExcel = Nothing
+    ' rsExport.Close
+    ' Set rsExport = Nothing
     Exit Function
 
 Err_Stop:
