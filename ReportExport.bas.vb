@@ -123,7 +123,7 @@ Public Function ReportExport(strSQL As String, strDir As String, strExportFile A
                 .Range(aryCols(col) & intRow, aryCols(col) & intLastRow).NumberFormat = "mm/dd/yyyy"
             ElseIf IsNumeric(.Range(aryCols(col) & intRow).Value) Then
                 .Range(aryCols(col) & intRow, aryCols(col) & intLastRow).HorizontalAlignment = xlRight
-                If .Range(aryCols(col) & intRow).Value > 9 Then
+                If .Range(aryCols(col) & intRow).Value > 999999999 Then
                     .Range(aryCols(col) & intRow, aryCols(col) & intLastRow).NumberFormat = "00000000-00" ' change as needed
                 End If
             ElseIf Left(.Range(aryCols(col) & intRow).Value, 1) = "$" Then
